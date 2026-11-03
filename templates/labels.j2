@@ -1,0 +1,66 @@
+{#
+SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+SPDX-FileCopyrightText: 2025 spatterlight
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
+{% if tautulli_container_labels_traefik_enabled %}
+traefik.enable=true
+
+{% if tautulli_container_labels_traefik_docker_network %}
+traefik.docker.network={{ tautulli_container_labels_traefik_docker_network }}
+{% endif %}
+
+{% set middlewares = [] %}
+
+{% if tautulli_container_labels_traefik_middleware_basic_auth_enabled %}
+{% set middlewares = middlewares + [tautulli_identifier + '-basic-auth'] %}
+traefik.http.middlewares.{{ tautulli_identifier }}-basic-auth.basicauth.users={{ tautulli_container_labels_traefik_middleware_basic_auth_users }}
+{% endif %}
+
+{% if tautulli_container_labels_traefik_path_prefix != '/' %}
+traefik.http.middlewares.{{ tautulli_identifier }}-slashless-redirect.redirectregex.regex=^({{ tautulli_container_labels_traefik_path_prefix | quote }})$
+traefik.http.middlewares.{{ tautulli_identifier }}-slashless-redirect.redirectregex.replacement=${1}/
+{% set middlewares = middlewares + [tautulli_identifier + '-slashless-redirect'] %}
+{% endif %}
+
+{#
+  Intentionally not adding a stripPrefix middleware.
+  Tautulli serves itself under the prefix via TAUTULLI_HTTP_ROOT (see `env.j2`).
+#}
+
+{% if tautulli_container_labels_traefik_additional_request_headers.keys() | length > 0 %}
+{% for name, value in tautulli_container_labels_traefik_additional_request_headers.items() %}
+traefik.http.middlewares.{{ tautulli_identifier }}-add-request-headers.headers.customrequestheaders.{{ name }}={{ value }}
+{% endfor %}
+{% set middlewares = middlewares + [tautulli_identifier + '-add-request-headers'] %}
+{% endif %}
+
+{% if tautulli_container_labels_traefik_additional_response_headers.keys() | length > 0 %}
+{% for name, value in tautulli_container_labels_traefik_additional_response_headers.items() %}
+traefik.http.middlewares.{{ tautulli_identifier }}-add-response-headers.headers.customresponseheaders.{{ name }}={{ value }}
+{% endfor %}
+{% set middlewares = middlewares + [tautulli_identifier + '-add-response-headers'] %}
+{% endif %}
+
+traefik.http.routers.{{ tautulli_identifier }}.rule={{ tautulli_container_labels_traefik_rule }}
+{% if tautulli_container_labels_traefik_priority | int > 0 %}
+traefik.http.routers.{{ tautulli_identifier }}.priority={{ tautulli_container_labels_traefik_priority }}
+{% endif %}
+traefik.http.routers.{{ tautulli_identifier }}.service={{ tautulli_identifier }}
+{% if middlewares | length > 0 %}
+traefik.http.routers.{{ tautulli_identifier }}.middlewares={{ middlewares | join(',') }}
+{% endif %}
+traefik.http.routers.{{ tautulli_identifier }}.entrypoints={{ tautulli_container_labels_traefik_entrypoints }}
+traefik.http.routers.{{ tautulli_identifier }}.tls={{ tautulli_container_labels_traefik_tls | to_json }}
+{% if tautulli_container_labels_traefik_tls %}
+traefik.http.routers.{{ tautulli_identifier }}.tls.certResolver={{ tautulli_container_labels_traefik_tls_certResolver }}
+{% endif %}
+
+traefik.http.services.{{ tautulli_identifier }}.loadbalancer.server.port={{ tautulli_container_http_port }}
+{% endif %}
+
+{% for arg in tautulli_container_labels_additional_labels %}
+{{ arg }}
+{% endfor %}

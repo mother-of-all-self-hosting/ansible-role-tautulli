@@ -1,0 +1,106 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2026 spatterlight
+# SPDX-FileCopyrightText: 2026 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+    force: true
+driver:
+  name: docker
+platforms:
+  - name: tautulli-${MOLECULE_DISTRO:-ubuntu2604}-default
+    image: "geerlingguy/docker-${MOLECULE_DISTRO:-ubuntu2604}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      # Docker inside the instance stores images via containerd. Its storage
+      # cannot use overlay on top of the instance's own overlay filesystem, so a
+      # volume puts it on a real filesystem.
+      - /var/lib/containerd
+    # Remove volumes along with the instance, so that local runs do not leave
+    # gigabytes behind.
+    keep_volumes: false
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callback_result_format: yaml
+  inventory:
+    group_vars:
+      all:
+        # Helper variables
+        tautulli_debug_service_enabled: false
+        tautulli_restarts_check_enabled: true
+
+        # The host directory mounted into the container through
+        # `tautulli_container_additional_volumes_custom`, and the file placed in it by
+        # prepare.yml. Reading that file from inside the container is what
+        # proves the additional volumes reach the systemd unit rather than
+        # being merely declared in defaults/main.yml.
+        tautulli_molecule_extra_volume_src: /tautulli-molecule-extra
+        tautulli_molecule_extra_volume_dst: /molecule-extra
+        tautulli_molecule_extra_volume_marker: only-a-real-bind-mount-can-read-this
+
+        # The name of the marker file prepare.yml places in that directory.
+        tautulli_molecule_marker_filename: tautulli-molecule-marker.txt
+
+        # Tautulli generates a random API key on first start, so a key that
+        # Tautulli answers to can only have come from the role's additional
+        # environment variables. See molecule/default/verify.yml.
+        tautulli_molecule_api_key: a1b2c3d4e5f60718293a4b5c6d7e8f90
+
+        # Variables for Tautulli
+        #
+        # Deliberately not 1000: the linuxserver.io PUID/PGID pattern has left a
+        # needed directory unwritable in other roles of this fleet, and a uid
+        # that exists in the test image by accident would hide that.
+        tautulli_uid: 1873
+        tautulli_gid: 1873
+
+        tautulli_hostname: tautulli.molecule.local
+
+        # A non-root path prefix exercises TAUTULLI_HTTP_ROOT (templates/env.j2)
+        # and the slashless redirect (templates/labels.j2).
+        tautulli_path_prefix: /tautulli-ui
+
+        # Bound to the loopback interface of the test container only. Nothing
+        # is published to the machine running Molecule, so two scenarios can
+        # run side by side without fighting over a port.
+        tautulli_container_http_host_bind_port: "127.0.0.1:18181"
+
+        tautulli_container_additional_volumes_custom:
+          - type: bind
+            src: "{{ tautulli_molecule_extra_volume_src }}"
+            dst: "{{ tautulli_molecule_extra_volume_dst }}"
+            options: readonly
+
+        # Also switches on TAUTULLI_HTTP_PROXY, which defaults to following it.
+        tautulli_container_labels_traefik_enabled: true
+
+        # Off by default, so it has to be switched on here for the basic-auth
+        # middleware in templates/labels.j2 to be exercised at all. Molecule
+        # interpolates dollar signs in this file, so the ones in the hash are
+        # written doubled.
+        tautulli_container_labels_traefik_middleware_basic_auth_enabled: true
+        tautulli_container_labels_traefik_middleware_basic_auth_users: "molecule:$$apr1$$molecule$$71DtE3xj/6PCMkh0SmxZ61"
+
+        # Neither the role's default of Etc/UTC nor the test host's zone, so
+        # that the timezone the container ends up in can only have come from
+        # templates/env.j2.
+        tautulli_environment_variables_tz: Asia/Tokyo
+
+        tautulli_environment_variables_additional_variables: |
+          TAUTULLI_API_KEY={{ tautulli_molecule_api_key }}
+  env:
+    # Workaround for https://github.com/ansible/molecule/issues/4391
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..:/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/.ansible/roles
+verifier:
+  name: ansible

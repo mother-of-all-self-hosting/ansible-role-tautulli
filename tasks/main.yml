@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2025 spatterlight
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Perform Tautulli installation tasks
+  when: tautulli_enabled | bool
+  tags:
+    - setup-all
+    - setup-tautulli
+    - install-all
+    - install-tautulli
+  block:
+    - name: Validate Tautulli configuration
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+    - name: Install Tautulli
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
+
+- name: Perform Tautulli uninstallation tasks
+  when: not tautulli_enabled | bool
+  tags:
+    - setup-all
+    - setup-tautulli
+  block:
+    - name: Uninstall Tautulli
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"

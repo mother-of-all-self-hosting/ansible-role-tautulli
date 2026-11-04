@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "Version bumps of Tautulli stay human-reviewed pull requests: Tautulli upgrades the schema of its SQLite database on every start, with no step back down, which a fresh-install Molecule run cannot see."
+  ],
+  "extends": [
+    "github>mother-of-all-self-hosting/renovate-config#v1.1.0"
+  ],
+  "packageRules": [
+    {
+      "description": "ghcr.io/tautulli/tautulli tags its releases `vX.Y.Z`, next to `vX.Y.Z-beta` prereleases and floating `latest`, `beta` and `nightly` tags. This keeps a bump to the release tags.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/tautulli/tautulli"
+      ],
+      "allowedVersions": "/^v\\d+\\.\\d+\\.\\d+$/"
+    }
+  ]
+}

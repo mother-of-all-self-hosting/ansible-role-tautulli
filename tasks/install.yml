@@ -1,0 +1,87 @@
+# SPDX-FileCopyrightText: 2023-2026 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2025 spatterlight
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Ensure Tautulli paths exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+    owner: "{{ tautulli_uid }}"
+    group: "{{ tautulli_gid }}"
+  with_items:
+    - "{{ tautulli_base_path }}"
+    - "{{ tautulli_data_path }}"
+
+- name: Ensure Tautulli support files installed
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/{{ item }}.j2"
+    dest: "{{ tautulli_base_path }}/{{ item }}"
+    mode: "0640"
+    owner: "{{ tautulli_uid }}"
+    group: "{{ tautulli_gid }}"
+  with_items:
+    - env
+    - labels
+  register: tautulli_support_files_result
+
+- name: Ensure Tautulli container image is pulled via community.docker.docker_image_pull
+  when: devture_systemd_docker_base_container_image_pull_method == 'ansible-module'
+  community.docker.docker_image_pull:
+    name: "{{ tautulli_container_image }}"
+    pull: always
+  register: tautulli_container_image_pull_result_ansible_module
+  retries: "{{ devture_playbook_help_container_retries_count }}"
+  delay: "{{ devture_playbook_help_container_retries_delay }}"
+  until: tautulli_container_image_pull_result_ansible_module is not failed
+
+- name: Ensure Tautulli container image is pulled via ansible.builtin.command
+  when: devture_systemd_docker_base_container_image_pull_method == 'command'
+  ansible.builtin.command:
+    cmd: "{{ devture_systemd_docker_base_host_command_docker }} pull {{ tautulli_container_image }}"
+  register: tautulli_container_image_pull_result_command
+  retries: "{{ devture_playbook_help_container_retries_count }}"
+  delay: "{{ devture_playbook_help_container_retries_delay }}"
+  until: tautulli_container_image_pull_result_command is not failed
+  changed_when: "'Downloaded newer image' in tautulli_container_image_pull_result_command.stdout"
+
+- name: Ensure Tautulli container network is created via community.docker.docker_network
+  when: devture_systemd_docker_base_container_network_creation_method == 'ansible-module'
+  community.docker.docker_network:
+    enable_ipv6: "{{ devture_systemd_docker_base_ipv6_enabled }}"
+    name: "{{ tautulli_container_network }}"
+    driver: bridge
+    driver_options: "{{ devture_systemd_docker_base_container_networks_driver_options }}"
+  register: tautulli_network_creation_result
+
+- name: Ensure Tautulli container network is created via ansible.builtin.command
+  when: devture_systemd_docker_base_container_network_creation_method == 'command'
+  ansible.builtin.command:
+    cmd: >-
+      {{ devture_systemd_docker_base_host_command_docker }} network create
+      {% if devture_systemd_docker_base_ipv6_enabled %}--ipv6{% endif %}
+      {{ devture_systemd_docker_base_container_networks_driver_options_string }}
+      {{ tautulli_container_network }}
+  register: tautulli_network_creation_result
+  changed_when: tautulli_network_creation_result.rc == 0
+  failed_when: tautulli_network_creation_result.rc != 0 and 'already exists' not in tautulli_network_creation_result.stderr
+
+- name: Ensure Tautulli systemd service is present
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/systemd/tautulli.service.j2"
+    dest: "{{ devture_systemd_docker_base_systemd_path }}/{{ tautulli_identifier }}.service"
+    mode: "0644"
+  register: tautulli_systemd_service_result
+
+- name: Determine whether Tautulli needs a restart
+  ansible.builtin.set_fact:
+    tautulli_restart_necessary: >-
+      {{
+        tautulli_support_files_result.changed | default(false)
+        or tautulli_systemd_service_result.changed | default(false)
+        or tautulli_container_image_pull_result_ansible_module.changed | default(false)
+        or tautulli_container_image_pull_result_command.changed | default(false)
+      }}

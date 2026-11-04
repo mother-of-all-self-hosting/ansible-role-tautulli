@@ -1,0 +1,85 @@
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2025 spatterlight
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Check existence of Tautulli systemd service
+  ansible.builtin.stat:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/{{ tautulli_identifier }}.service"
+  register: tautulli_service_stat
+
+- name: Uninstall Tautulli systemd services and files
+  when: tautulli_service_stat.stat.exists | bool
+  block:
+    - name: Ensure Tautulli systemd service is stopped
+      ansible.builtin.service:
+        name: "{{ tautulli_identifier }}"
+        state: stopped
+        enabled: false
+        daemon_reload: true
+
+    - name: Ensure Tautulli systemd service does not exist
+      ansible.builtin.file:
+        path: "{{ devture_systemd_docker_base_systemd_path }}/{{ tautulli_identifier }}.service"
+        state: absent
+
+    - name: Ensure Tautulli support files do not exist
+      ansible.builtin.file:
+        path: "{{ tautulli_base_path }}/{{ item }}"
+        state: absent
+      with_items:
+        - env
+        - labels
+
+    - name: Ensure Tautulli local data path does not exist if empty
+      ansible.builtin.command:
+        cmd: "rmdir {{ tautulli_data_path }}"
+      register: tautulli_data_path_deletion_result
+      changed_when: tautulli_data_path_deletion_result.rc == 0
+      failed_when: false
+
+    - name: Ensure Tautulli base path does not exist if empty
+      ansible.builtin.command:
+        cmd: "rmdir {{ tautulli_base_path }}"
+      register: tautulli_base_path_deletion_result
+      changed_when: tautulli_base_path_deletion_result.rc == 0
+      failed_when: false
+
+    - name: Ensure Tautulli container network does not exist
+      when: tautulli_container_network_deletion_enabled
+      block:
+        - name: Ensure Tautulli container network does not exist via community.docker.docker_network
+          when: devture_systemd_docker_base_container_network_creation_method == 'ansible-module'
+          community.docker.docker_network:
+            name: "{{ tautulli_container_network }}"
+            state: absent
+          register: tautulli_network_deletion_result
+
+        - name: Ensure Tautulli container network does not exist via ansible.builtin.command
+          when: devture_systemd_docker_base_container_network_creation_method == 'command'
+          ansible.builtin.command:
+            cmd: >-
+              {{ devture_systemd_docker_base_host_command_docker }} network rm
+              {{ tautulli_container_network }}
+          register: tautulli_network_deletion_result
+          changed_when: tautulli_container_network in tautulli_network_deletion_result.stdout
+
+- name: Check existence of Tautulli local data path
+  ansible.builtin.stat:
+    path: "{{ tautulli_data_path }}"
+  register: tautulli_data_path_stat
+
+# We just want to notify the user. Deleting data is too destructive.
+- name: Inject the message about the remaining Tautulli local data path
+  when: tautulli_data_path_stat.stat.exists | bool
+  ansible.builtin.set_fact:
+    devture_playbook_runtime_messages_list: |
+      {{
+        devture_playbook_runtime_messages_list | default([])
+        +
+        [
+          "Note: As the local Tautulli instance has been removed, some old data remains in `" + tautulli_data_path + "`. Feel free to delete it."
+        ]
+      }}

@@ -18,7 +18,6 @@
     - name: Ensure required packages are installed for Tautulli Molecule tests preparation
       ansible.builtin.package:
         name:
-          # Used by the `ansible.builtin.uri` calls in verify.yml
           - python3-requests
         state: present
 

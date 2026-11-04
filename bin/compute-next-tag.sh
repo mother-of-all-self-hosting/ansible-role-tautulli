@@ -49,8 +49,9 @@ if [ -z "$version" ]; then
 	exit 1
 fi
 
-# The value carries no leading `v` while the tags do, but tolerate one so that a
-# future change of convention does not produce a doubled prefix.
+# The value carries the leading `v` of Tautulli's image tags, and so do this
+# repository's tags. Stripping it before putting it back keeps the prefix from
+# being doubled, and gives the same tag should the `v` ever be left off.
 tag_prefix="v${version#v}-"
 
 # Of all releases of this version, the highest release number. Sorted

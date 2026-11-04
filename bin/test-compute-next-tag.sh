@@ -57,10 +57,10 @@ scenario() {
 	git config commit.gpgsign false
 
 	cat > defaults/main.yml <<-'YAML'
-		# tautulli_version: 9.9.9
-		# renovate: datasource=docker depName=ghcr.io/linuxserver/tautulli versioning=semver
-		tautulli_version: 2.6.5
-		tautulli_container_image: "{{ tautulli_container_image_registry_prefix }}linuxserver/tautulli:{{ tautulli_container_image_tag }}"
+		# tautulli_version: v9.9.9
+		# renovate: datasource=docker depName=ghcr.io/tautulli/tautulli versioning=semver
+		tautulli_version: v2.6.5
+		tautulli_container_image: "{{ tautulli_container_image_registry_prefix }}tautulli/tautulli:{{ tautulli_container_image_tag }}"
 		tautulli_container_image_tag: "{{ tautulli_version }}"
 	YAML
 	printf 'placeholder\n' > meta/main.yml
@@ -106,12 +106,12 @@ expect() {
 	fi
 }
 
-bump_patch="sed -i 's|^tautulli_version: 2.6.5$|tautulli_version: 2.6.6|' defaults/main.yml"
-revert_patch="sed -i 's|^tautulli_version: 2.6.6$|tautulli_version: 2.6.5|' defaults/main.yml"
-bump_minor="sed -i 's|^tautulli_version: 2.6.5$|tautulli_version: 2.7.0|' defaults/main.yml"
-bump_to_released="sed -i 's|^tautulli_version: 2.6.5$|tautulli_version: 2.5.2|' defaults/main.yml"
-switch_to_short="sed -i 's|^tautulli_version: 2.6.5$|tautulli_version: 1.4.1|' defaults/main.yml"
-switch_to_long="sed -i 's|^tautulli_version: 2.6.5$|tautulli_version: 1.4.1117|' defaults/main.yml"
+bump_patch="sed -i 's|^tautulli_version: v2.6.5$|tautulli_version: v2.6.6|' defaults/main.yml"
+revert_patch="sed -i 's|^tautulli_version: v2.6.6$|tautulli_version: v2.6.5|' defaults/main.yml"
+bump_minor="sed -i 's|^tautulli_version: v2.6.5$|tautulli_version: v2.7.0|' defaults/main.yml"
+bump_to_released="sed -i 's|^tautulli_version: v2.6.5$|tautulli_version: v2.5.2|' defaults/main.yml"
+switch_to_short="sed -i 's|^tautulli_version: v2.6.5$|tautulli_version: v1.4.1|' defaults/main.yml"
+switch_to_long="sed -i 's|^tautulli_version: v2.6.5$|tautulli_version: v1.4.1117|' defaults/main.yml"
 edit_task="printf 'a task\n' >> tasks/main.yml"
 edit_template="printf 'a line\n' >> templates/env.j2"
 edit_meta="printf 'a line\n' >> meta/main.yml"

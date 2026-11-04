@@ -59,9 +59,8 @@ provisioner:
 
         # Variables for Tautulli
         #
-        # Deliberately not 1000: the linuxserver.io PUID/PGID pattern has left a
-        # needed directory unwritable in other roles of this fleet, and a uid
-        # that exists in the test image by accident would hide that.
+        # Deliberately not the image's own 1000:1000, so that the container
+        # running as this user can only be the role's doing.
         tautulli_uid: 1873
         tautulli_gid: 1873
 
@@ -75,6 +74,11 @@ provisioner:
         # is published to the machine running Molecule, so two scenarios can
         # run side by side without fighting over a port.
         tautulli_container_http_host_bind_port: "127.0.0.1:18181"
+
+        # Not Tautulli's own 8181, so that Tautulli answering at all, and the
+        # container turning healthy, can only come from TAUTULLI_HTTP_PORT
+        # (templates/env.j2) and the role's health check.
+        tautulli_container_http_port: 8282
 
         tautulli_container_additional_volumes_custom:
           - type: bind

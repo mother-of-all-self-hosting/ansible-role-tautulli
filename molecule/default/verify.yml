@@ -27,6 +27,7 @@
     tautulli_verify_gid: 1873
     tautulli_verify_hostname: tautulli.molecule.local
     tautulli_verify_path_prefix: /tautulli-ui
+    tautulli_verify_http_port: 8282
     tautulli_verify_basic_auth_users: "molecule:$apr1$molecule$71DtE3xj/6PCMkh0SmxZ61"
     tautulli_verify_timezone: Asia/Tokyo
     tautulli_verify_timezone_abbreviation: JST
@@ -152,44 +153,55 @@
             fail_msg: "The additional volume did not carry the marker into the container"
             success_msg: "The additional volume carries the marker into the container"
 
-        - name: Assert that the read-only container still gets its writable /run and /tmp
+        - name: Assert that the read-only container still gets its writable /tmp
           ansible.builtin.assert:
             that:
               - tautulli_container.HostConfig.ReadonlyRootfs
-              - "'/run' in (tautulli_container.HostConfig.Tmpfs | default({}))"
-              - "'exec' in tautulli_container.HostConfig.Tmpfs['/run']"
               - "'/tmp' in (tautulli_container.HostConfig.Tmpfs | default({}))"
             fail_msg: >-
               The container's root filesystem is
               {{ 'read-only' if tautulli_container.HostConfig.ReadonlyRootfs else 'writable' }}
               and its tmpfs mounts are {{ tautulli_container.HostConfig.Tmpfs | default({}) }}
-            success_msg: "The container is read-only with tmpfs mounts at /run and /tmp"
+            success_msg: "The container is read-only with a tmpfs mount at /tmp"
 
         - name: Assert that the role's uid, gid and timezone reached the container
           ansible.builtin.assert:
             that:
               - tautulli_container.Config.User == (tautulli_verify_uid | string) ~ ':' ~ (tautulli_verify_gid | string)
-              - ('PUID=' ~ tautulli_verify_uid) in tautulli_container.Config.Env
-              - ('PGID=' ~ tautulli_verify_gid) in tautulli_container.Config.Env
               - ('TZ=' ~ tautulli_verify_timezone) in tautulli_container.Config.Env
             fail_msg: >-
               The container runs as {{ tautulli_container.Config.User }}
-              with {{ tautulli_container.Config.Env | select('match', '(P[UG]ID|TZ)=') | list }}
-            success_msg: "The container runs as {{ tautulli_container.Config.User }} with the matching PUID/PGID and TZ"
+              with {{ tautulli_container.Config.Env | select('match', 'TZ=') | list }}
+            success_msg: "The container runs as {{ tautulli_container.Config.User }} with the matching TZ"
 
         - name: Assert that the container image is the pinned version
           ansible.builtin.assert:
             that:
-              - tautulli_container.Config.Image == 'ghcr.io/linuxserver/tautulli:' ~ tautulli_defaults.tautulli_version
-              # linuxserver.io stamps its own build onto the image as
-              # `v<Tautulli version>-ls<rebuild counter>`. The trailing dash keeps
-              # `2.18.2` from being satisfied by a `2.18.20` build.
-              - tautulli_container.Config.Labels['org.opencontainers.image.version'].startswith('v' ~ tautulli_defaults.tautulli_version ~ '-')
+              - tautulli_container.Config.Image == 'ghcr.io/tautulli/tautulli:' ~ tautulli_defaults.tautulli_version
+              - tautulli_container.Config.Labels['org.opencontainers.image.version'] | default('') == tautulli_defaults.tautulli_version
             fail_msg: >-
               The container runs {{ tautulli_container.Config.Image }}
               ({{ tautulli_container.Config.Labels['org.opencontainers.image.version'] | default('no version label') }}),
               not the {{ tautulli_defaults.tautulli_version }} pinned in defaults/main.yml
             success_msg: "The container runs {{ tautulli_container.Config.Image }}"
+
+        # The image's own health check asks port 8181, where nothing listens
+        # in this scenario, so the container turns healthy only with the role's.
+        - name: Wait for the Tautulli container to turn healthy (up to 180s)
+          ansible.builtin.command:
+            cmd: docker container inspect tautulli
+          register: tautulli_container_health_raw
+          until: ((tautulli_container_health_raw.stdout | from_json)[0].State.Health.Status | default('')) == 'healthy'
+          retries: 36
+          delay: 5
+          changed_when: false
+          failed_when: false
+
+        - name: Assert the Tautulli container is healthy
+          ansible.builtin.assert:
+            that: ((tautulli_container_health_raw.stdout | from_json)[0].State.Health.Status | default('')) == 'healthy'
+            fail_msg: "The container's health is {{ (tautulli_container_health_raw.stdout | from_json)[0].State.Health | default('not checked') }}"
+            success_msg: "The container is healthy"
 
         # ------------------------------------------------------------------
         # Traefik labels
@@ -201,9 +213,9 @@
               - tautulli_container.Config.Labels['traefik.enable'] == 'true'
               - tautulli_container.Config.Labels['traefik.http.routers.tautulli.rule'] == 'Host(`' ~ tautulli_verify_hostname ~ '`) && PathPrefix(`' ~ tautulli_verify_path_prefix ~ '`)'
               - "'traefik.http.middlewares.tautulli-strip-prefix.stripprefix.prefixes' not in tautulli_container.Config.Labels"
-              - tautulli_container.Config.Labels['traefik.http.services.tautulli.loadbalancer.server.port'] == '8181'
+              - tautulli_container.Config.Labels['traefik.http.services.tautulli.loadbalancer.server.port'] == tautulli_verify_http_port | string
             fail_msg: "The Traefik labels are not what templates/labels.j2 should have produced: {{ tautulli_container.Config.Labels }}"
-            success_msg: "The Traefik labels route {{ tautulli_verify_hostname }}{{ tautulli_verify_path_prefix }} to port 8181"
+            success_msg: "The Traefik labels route {{ tautulli_verify_hostname }}{{ tautulli_verify_path_prefix }} to port {{ tautulli_verify_http_port }}"
 
         # Defining the middleware is not enough: Traefik only applies the ones the
         # router lists, so the router has to carry it too.
@@ -249,8 +261,8 @@
 
         - name: Assert the running Tautulli reports the version this role installs
           ansible.builtin.assert:
-            that: tautulli_info.json.response.data.tautulli_version == 'v' ~ tautulli_defaults.tautulli_version
-            fail_msg: "Tautulli reports version {{ tautulli_info.json.response.data.tautulli_version | default('none') }}, expected v{{ tautulli_defaults.tautulli_version }}"
+            that: tautulli_info.json.response.data.tautulli_version == tautulli_defaults.tautulli_version
+            fail_msg: "Tautulli reports version {{ tautulli_info.json.response.data.tautulli_version | default('none') }}, expected {{ tautulli_defaults.tautulli_version }}"
             success_msg: "Tautulli reports version {{ tautulli_info.json.response.data.tautulli_version }}"
 
         # Until its setup wizard is completed, Tautulli redirects its start page to

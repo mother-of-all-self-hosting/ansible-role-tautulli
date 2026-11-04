@@ -16,8 +16,8 @@ tautulli_identifier: tautulli
 tautulli_base_path: "/{{ tautulli_identifier }}"
 tautulli_data_path: "{{ tautulli_base_path }}/data"
 
-# renovate: datasource=docker depName=ghcr.io/linuxserver/tautulli versioning=semver
-tautulli_version: 2.18.2
+# renovate: datasource=docker depName=ghcr.io/tautulli/tautulli versioning=semver
+tautulli_version: v2.18.2
 tautulli_arch: amd64
 
 tautulli_uid: ""
@@ -30,7 +30,7 @@ tautulli_hostname: ""
 # This value must either be `/` or not end with a slash (e.g. `/tautulli`).
 tautulli_path_prefix: /
 
-tautulli_container_image: "{{ tautulli_container_image_registry_prefix }}linuxserver/tautulli:{{ tautulli_container_image_tag }}"
+tautulli_container_image: "{{ tautulli_container_image_registry_prefix }}tautulli/tautulli:{{ tautulli_container_image_tag }}"
 tautulli_container_image_tag: "{{ tautulli_version }}"
 tautulli_container_image_registry_prefix: "{{ tautulli_container_image_registry_prefix_upstream }}"
 tautulli_container_image_registry_prefix_upstream: "{{ tautulli_container_image_registry_prefix_upstream_default }}"
@@ -115,9 +115,6 @@ tautulli_container_labels_traefik_additional_response_headers_custom: {}
 tautulli_container_labels_additional_labels: "{{ tautulli_container_labels_additional_labels_auto + tautulli_container_labels_additional_labels_custom }}"
 tautulli_container_labels_additional_labels_auto: []
 tautulli_container_labels_additional_labels_custom: []
-
-# Specify the size of the container's tmpfs volume (/run)
-tautulli_container_tmpfs_run_size: 128m
 
 # Specify the size of the container's tmpfs volume (/tmp)
 tautulli_container_tmpfs_tmp_size: 128m

@@ -86,8 +86,6 @@ tautulli_systemd_wanted_services_list_custom:
   - "{{ plex_identifier }}.service"
 ```
 
-**Note**: if you use the MASH playbook, this is done for you.
-
 Then use `plex` (or how you/your playbook named the service, e.g. `mash-plex`) as the Plex IP address or hostname, and `32400` as the port, when Tautulli asks for them.
 
 ### Mounting Plex Media Server logs (optional)

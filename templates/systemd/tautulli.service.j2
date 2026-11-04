@@ -28,12 +28,12 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
       --log-driver=none \
       --user={{ tautulli_uid }}:{{ tautulli_gid }} \
       --cap-drop=ALL \
-      --cap-add=CHOWN \
-      --cap-add=DAC_OVERRIDE \
-      --cap-add=FOWNER \
-      --cap-add=SETGID \
-      --cap-add=SETUID \
       --read-only \
+      {# The image's own entrypoint needs root, to change the uid of its user and
+         the owner of /config before dropping privileges. The container runs as
+         the role's user instead, whose data path the role creates, so Tautulli is
+         started directly. #}
+      --entrypoint=python \
       --network={{ tautulli_container_network }} \
       {% if tautulli_container_http_host_bind_port %}
       -p {{ tautulli_container_http_host_bind_port }}:{{ tautulli_container_http_port }} \
@@ -44,13 +44,14 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
       {% for volume in tautulli_container_additional_volumes %}
       --mount type={{ volume.type | default('bind' if '/' in volume.src else 'volume') }},src={{ volume.src }},dst={{ volume.dst }}{{ (',' + volume.options) if volume.options | default('') else '' }} \
       {% endfor %}
-      {# https://docs.linuxserver.io/misc/read-only/#how #}
-      --tmpfs=/run:rw,exec,nosuid,size={{ tautulli_container_tmpfs_run_size }} \
       --tmpfs=/tmp:rw,noexec,nosuid,size={{ tautulli_container_tmpfs_tmp_size }} \
+      {# The image's health check, at the port the role configures rather than 8181 #}
+      --health-cmd='curl -ILfks -o /dev/null https://localhost:{{ tautulli_container_http_port }}/status || curl -ILfs -o /dev/null http://localhost:{{ tautulli_container_http_port }}/status' \
       {% for arg in tautulli_container_extra_arguments %}
       {{ arg }} \
       {% endfor %}
       {{ tautulli_container_image }} \
+      Tautulli.py --datadir /config \
       {% for arg in tautulli_process_extra_arguments %}
       {{ arg }} \
       {% endfor %}

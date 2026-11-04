@@ -72,7 +72,7 @@ tautulli_container_labels_traefik_middleware_basic_auth_users: 'USERNAME_HERE:HA
 
 Make sure to replace `USERNAME_HERE` and `HASHED_PASSWORD_HERE` with your own values. You can create users by running `htpasswd -nb USERNAME_HERE PASSWORD_HERE`.
 
-### Connecting to Plex Media Server
+### Connecting Tautulli to Plex Media Server
 
 If Plex Media Server is installed on the same server with [its role](https://github.com/mother-of-all-self-hosting/ansible-role-plex), you can let Tautulli talk to it directly over the container network, instead of going through its public hostname. To do so, add the following configuration to your `vars.yml` file.
 

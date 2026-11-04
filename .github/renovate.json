@@ -1,5 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "Version bumps of Tautulli stay human-reviewed pull requests: Tautulli upgrades the schema of its SQLite database on every start, with no step back down, which a fresh-install Molecule run cannot see."
+  ],
   "extends": [
     "github>mother-of-all-self-hosting/renovate-config#v1.1.0"
   ],

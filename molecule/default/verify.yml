@@ -288,6 +288,21 @@
             fail_msg: "Tautulli redirects its start page to {{ tautulli_start_page.location | default('nowhere') }}"
             success_msg: "Tautulli redirects its start page to {{ tautulli_start_page.location }}"
 
+        # Read the temporary password the way `--tags=print-password-tautulli`
+        # does, so that a change to Tautulli's log line fails here, not for users.
+        - name: Run the tasks behind the print-password-tautulli tag
+          ansible.builtin.include_role:
+            name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+            tasks_from: print_password_tautulli
+
+        - name: Assert the print-password-tautulli tasks found the temporary login
+          ansible.builtin.assert:
+            that:
+              - tautulli_temporary_username == 'tautulli'
+              - tautulli_temporary_password is match('^[A-Za-z0-9_-]{16}$')
+            fail_msg: "Found `{{ tautulli_temporary_username }}` / `{{ tautulli_temporary_password }}`, expected `tautulli` and a 16-character password"
+            success_msg: "Found the temporary login for `{{ tautulli_temporary_username }}`"
+
         # The API could be answering out of memory. Tautulli keeps its state in a
         # SQLite database in the directory the role bind-mounts, so the database
         # has to be there, on the host side of the mount, owned by the role's user.

@@ -20,7 +20,7 @@ traefik.http.middlewares.{{ tautulli_identifier }}-basic-auth.basicauth.users={{
 {% endif %}
 
 {% if tautulli_container_labels_traefik_path_prefix != '/' %}
-traefik.http.middlewares.{{ tautulli_identifier }}-slashless-redirect.redirectregex.regex=^({{ tautulli_container_labels_traefik_path_prefix | quote }})$
+traefik.http.middlewares.{{ tautulli_identifier }}-slashless-redirect.redirectregex.regex=^(https?://[^/]+{{ tautulli_container_labels_traefik_path_prefix | regex_escape }})$
 traefik.http.middlewares.{{ tautulli_identifier }}-slashless-redirect.redirectregex.replacement=${1}/
 {% set middlewares = middlewares + [tautulli_identifier + '-slashless-redirect'] %}
 {% endif %}

@@ -17,7 +17,7 @@ tautulli_base_path: "/{{ tautulli_identifier }}"
 tautulli_data_path: "{{ tautulli_base_path }}/data"
 
 # renovate: datasource=docker depName=ghcr.io/tautulli/tautulli versioning=semver
-tautulli_version: v2.18.2
+tautulli_version: v2.19.1
 tautulli_arch: amd64
 
 tautulli_uid: ""

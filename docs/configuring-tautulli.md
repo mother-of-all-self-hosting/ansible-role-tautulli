@@ -128,9 +128,13 @@ If you use the MASH playbook, the shortcut commands with the [`just` program](ht
 
 After running the command for installation, Tautulli becomes available at the specified hostname like `https://example.com`.
 
-To get started, open the URL with a web browser, and follow the setup wizard to create an account and connect Tautulli to Plex Media Server.
+To get started, open the URL with a web browser to log in to the instance as the `tautulli` user with a **temporary** randomly generated password. Tautulli generates it on its first start, and logs it once. You can output the password by running the playbook as below:
 
-**Note**: until the setup wizard is completed, anyone who can reach the URL can complete it. Make sure to do so right after installing, or to [enable HTTP Basic authentication](#configuring-http-basic-authentication-optional) on Traefik beforehand.
+```sh
+ansible-playbook -i inventory/hosts setup.yml --tags=print-password-tautulli
+```
+
+After logging in, follow the setup wizard to connect Tautulli to Plex Media Server, and change the password in the settings.
 
 ## Troubleshooting
 

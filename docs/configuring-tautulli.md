@@ -130,7 +130,7 @@ After running the command for installation, Tautulli becomes available at the sp
 
 To get started, open the URL with a web browser, and follow the setup wizard to create an account and connect Tautulli to Plex Media Server.
 
-**Note**: until the setup wizard is completed, anyone who can reach the URL can complete it. Make sure to do so right after installing, or to [enable HTTP Basic authentication](#configuring-http-basic-authentication-optional) on Traefik beforehand.
+**Note**: Tautulli sets a temporary password on its first start and prints it once to its log. Find it by running `journalctl -u tautulli | grep -A1 'Setup wizard login'` (or how you/your playbook named the service, e.g. `mash-tautulli`), log in as `tautulli` with it, and change the password in the settings afterwards.
 
 ## Troubleshooting
 

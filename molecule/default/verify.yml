@@ -265,10 +265,10 @@
             fail_msg: "Tautulli reports version {{ tautulli_info.json.response.data.tautulli_version | default('none') }}, expected {{ tautulli_defaults.tautulli_version }}"
             success_msg: "Tautulli reports version {{ tautulli_info.json.response.data.tautulli_version }}"
 
-        # Until its setup wizard is completed, Tautulli redirects its start page to
-        # the wizard. It takes the scheme of that redirect from `X-Forwarded-Proto`
-        # only with TAUTULLI_HTTP_PROXY on, and would otherwise send the browser to
-        # plain http behind Traefik's TLS.
+        # Tautulli sets a temporary password on its first start, so it redirects its
+        # start page to the login. It takes the scheme of that redirect from
+        # `X-Forwarded-Proto` only with TAUTULLI_HTTP_PROXY on, and would otherwise
+        # send the browser to plain http behind Traefik's TLS.
         - name: Ask Tautulli for its start page, as Traefik would forward it
           ansible.builtin.uri:
             url: "{{ tautulli_verify_url }}/"
@@ -282,9 +282,9 @@
           register: tautulli_start_page
           changed_when: false
 
-        - name: Assert Tautulli redirects to its setup wizard at the public scheme and hostname
+        - name: Assert Tautulli redirects to its login at the public scheme and hostname
           ansible.builtin.assert:
-            that: tautulli_start_page.location == 'https://' ~ tautulli_verify_hostname ~ tautulli_verify_path_prefix ~ '/welcome'
+            that: tautulli_start_page.location == 'https://' ~ tautulli_verify_hostname ~ tautulli_verify_path_prefix ~ '/auth/logout?redirect_uri=/'
             fail_msg: "Tautulli redirects its start page to {{ tautulli_start_page.location | default('nowhere') }}"
             success_msg: "Tautulli redirects its start page to {{ tautulli_start_page.location }}"
 
